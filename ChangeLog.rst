@@ -1,3 +1,34 @@
+64.3.0 (unreleased)
+*******************
+
+- ...
+
+
+64.2.1 (2024-09-05)
+*******************
+
+Fixes
+-----
+
+- Verifying the email address by clicking on the link would no longer log you in, even
+  in case of ``ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True``.
+
+
+Security notice
+---------------
+
+- It was already the case that you could not enable TOTP 2FA if your account had
+  unverified email addresses. This is necessary to stop a user from claiming
+  email addresses and locking other users out. This safety check is now added to
+  WebAuthn security keys as well.
+
+- In case a user signs in into an account using social account email
+  authentication (``SOCIALACCOUNT_EMAIL_AUTHENTICATION``) and the email used is
+  not verified, the password of the account is now wiped (made unusable) to
+  prevent the person that created the account (without verifying it) from
+  signing in.
+
+
 64.2.0 (2024-08-30)
 *******************
 
