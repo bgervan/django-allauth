@@ -42,51 +42,27 @@ class UserSessionManager(models.Manager):
             user=request.user,
             ip=get_adapter().get_client_ip(request),
             user_agent=ua,
-            last_seen_at=timezone.now(),
         )
 
-        if app_settings.HISTORY_ENABLED:
-            new_history_entry = dict(
-                ip=get_adapter().get_client_ip(request),
-                user_agent=ua,
-                timestamp=timezone.now().isoformat(),
-            )
-            defaults["data"] = {"history": [new_history_entry]}
-
-            with transaction.atomic():
-                session, created = UserSession.objects.get_or_create(
-                    session_key=request.session.session_key,
-                    defaults=defaults
-                )
-
-                if not created:
-                    history = session.data.get("history", [])
-                    session.user = defaults["user"]
-                    session.ip = defaults["ip"]
-                    session.user_agent = defaults["user_agent"]
-                    session.last_seen_at = timezone.now()
-                    changed = False
-
-                    if session.ip != new_history_entry["ip"]:
-                        changed = True
-                        ip_changed.send(sender=UserSession, instance=session, new_ip=new_history_entry["ip"])
-
-                    if session.user_agent != new_history_entry["user_agent"]:
-                        changed = True
-                        user_agent_changed.send(sender=UserSession, instance=session,
-                                                new_user_agent=new_history_entry["user_agent"])
-
-                    if changed:
-                        history.append(new_history_entry)
-
-                    session.data["history"] = history[-app_settings.HISTORY_MAX_COUNT:]
-
-                    session.save()
-        else:
-            UserSession.objects.update_or_create(
+        with transaction.atomic():
+            session, created = UserSession.objects.get_or_create(
                 session_key=request.session.session_key,
-                defaults=defaults,
+                defaults=defaults
             )
+
+            if not created:
+                if session.ip != defaults["ip"]:
+                    ip_changed.send(sender=UserSession, session=session, from_ip=session.ip, to_ip=defaults["ip"])
+
+                if session.user_agent != defaults["user_agent"]:
+                    user_agent_changed.send(sender=UserSession, session=session, from_user_agent=session.user_agent, to_user_agent=defaults["user_agent"])
+
+                session.user = defaults["user"]
+                session.ip = defaults["ip"]
+                session.user_agent = defaults["user_agent"]
+                session.last_seen_at = timezone.now()
+
+                session.save()
 
 
 class UserSession(models.Model):
